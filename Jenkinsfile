@@ -76,7 +76,12 @@ pipeline {
         stage("Trivy Image Scan") {
             steps {
                 script {
-                    sh 'docker run -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image gujarathiajaykumar/reddit-clone-pipeline:latest --no-progress --scanners vuln --exit-code 0 --severity HIGH,CRITICAL --format table > trivyimage.txt'
+                    sh '''
+                    docker run -v /var/run/docker.sock:/var/run/docker.sock \
+                    aquasec/trivy image gujarathiajaykumar/reddit-clone-pipeline:latest \
+                    --no-progress --scanners vuln --exit-code 0 \
+                    --severity HIGH,CRITICAL --format table > trivyimage.txt
+                    '''
                 }
             }
         }
@@ -93,7 +98,7 @@ pipeline {
         stage("Trigger CD Pipeline") {
             steps {
                 script {
-                    // Proper credential injection
+                    // Secure API Token injection
                     withCredentials([string(credentialsId: 'JENKINS_API_TOKEN', variable: 'API_TOKEN')]) {
                         sh """
                         curl -v -k --user clouduser:${API_TOKEN} -X POST \
@@ -110,21 +115,18 @@ pipeline {
 
     post {
         always {
-            // ✅ ensure workspace exists
-            node {
-                emailext(
-                    attachLog: true,
-                    subject: "'${currentBuild.result}' - ${env.JOB_NAME} Build #${env.BUILD_NUMBER}",
-                    body: """
-                        <b>Project:</b> ${env.JOB_NAME}<br/>
-                        <b>Build Number:</b> ${env.BUILD_NUMBER}<br/>
-                        <b>Result:</b> ${currentBuild.result}<br/>
-                        <b>URL:</b> ${env.BUILD_URL}<br/>
-                    """,
-                    to: 'gujarathiajaykumar@gmail.com',
-                    attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
-                )
-            }
+            emailext(
+                attachLog: true,
+                subject: "'${currentBuild.result}' - ${env.JOB_NAME} Build #${env.BUILD_NUMBER}",
+                body: """
+                    <b>Project:</b> ${env.JOB_NAME}<br/>
+                    <b>Build Number:</b> ${env.BUILD_NUMBER}<br/>
+                    <b>Result:</b> ${currentBuild.result}<br/>
+                    <b>URL:</b> ${env.BUILD_URL}<br/>
+                """,
+                to: 'gujarathiajaykumar@gmail.com',
+                attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
+            )
         }
     }
 }
